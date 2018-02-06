@@ -22,7 +22,7 @@ class UsersController < ApplicationController
         redirect_to user_path(@user)
       end
     else
-      @users = User.search(params[:search]).paginate(params[:page], :limit => params[:limit], :search_count => params[:search])
+      @users = User.search(search_params).paginate(params[:page], :limit => params[:limit], :search_count => params[:search])
       respond_with(@users) do |format|
         format.xml do
           render :xml => @users.to_xml(:root => "users")
@@ -74,7 +74,7 @@ class UsersController < ApplicationController
   def cache
     @user = User.find(params[:id])
     @user.update_cache
-    render :nothing => true
+    render plain: ""
   end
 
   private

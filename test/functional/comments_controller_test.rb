@@ -59,7 +59,7 @@ class CommentsControllerTest < ActionDispatch::IntegrationTest
 
     context "edit action" do
       should "render" do
-        get_authenticated edit_comment_path(@comment.id), @user
+        get_auth edit_comment_path(@comment.id), @user
         assert_response :success
       end
     end
@@ -67,13 +67,13 @@ class CommentsControllerTest < ActionDispatch::IntegrationTest
     context "update action" do
       context "when updating another user's comment" do
         should "succeed if updater is a moderator" do
-          put_authenticated comment_path(@comment.id), @user, params: {comment: {body: "abc"}}
+          put_auth comment_path(@comment.id), @user, params: {comment: {body: "abc"}}
           assert_equal("abc", @comment.reload.body)
           assert_redirected_to post_path(@comment.post)
         end
 
         should "fail if updater is not a moderator" do
-          put_authenticated comment_path(@mod_comment.id), @user, params: {comment: {body: "abc"}}
+          put_auth comment_path(@mod_comment.id), @user, params: {comment: {body: "abc"}}
           assert_not_equal("abc", @mod_comment.reload.body)
           assert_response 403
         end
@@ -81,35 +81,35 @@ class CommentsControllerTest < ActionDispatch::IntegrationTest
 
       context "when stickying a comment" do
         should "succeed if updater is a moderator" do
-          put_authenticated comment_path(@comment.id), @mod, params: {comment: {is_sticky: true}}
+          put_auth comment_path(@comment.id), @mod, params: {comment: {is_sticky: true}}
           assert_equal(true, @comment.reload.is_sticky)
           assert_redirected_to @comment.post
         end
 
         should "fail if updater is not a moderator" do
-          put_authenticated comment_path(@comment.id), @user, params: {comment: {is_sticky: true}}
+          put_auth comment_path(@comment.id), @user, params: {comment: {is_sticky: true}}
           assert_equal(false, @comment.reload.is_sticky)
         end
       end
 
       should "update the body" do
-        put_authenticated comment_path(@comment.id), @comment.creator, params: {comment: {body: "abc"}}
+        put_auth comment_path(@comment.id), @comment.creator, params: {comment: {body: "abc"}}
         assert_equal("abc", @comment.reload.body)
         assert_redirected_to post_path(@comment.post)
       end
 
       should "allow changing the body and is_deleted" do
-        put_authenticated comment_path(@comment.id), @comment.creator, params: {comment: {body: "herp derp", is_deleted: true}}
+        put_auth comment_path(@comment.id), @comment.creator, params: {comment: {body: "herp derp", is_deleted: true}}
         assert_equal("herp derp", @comment.reload.body)
         assert_equal(true, @comment.is_deleted)
         assert_redirected_to post_path(@post)
       end
 
       should "not allow changing do_not_bump_post or post_id" do
-        CurrentUser.scoped(@user) do
+        as_user do
           @another_post = create(:post)
         end
-        put_authenticated comment_path(@comment.id), @comment.creator, params: {do_not_bump_post: true, post_id: @another_post.id}
+        put_auth comment_path(@comment.id), @comment.creator, params: {do_not_bump_post: true, post_id: @another_post.id}
         assert_equal(false, @comment.reload.do_not_bump_post)
         assert_equal(@post.id, @comment.post_id)
       end
@@ -117,7 +117,7 @@ class CommentsControllerTest < ActionDispatch::IntegrationTest
 
     context "new action" do
       should "redirect" do
-        get_authenticated new_comment_path, @user
+        get_auth new_comment_path, @user
         assert_redirected_to comments_path
       end
     end
@@ -125,7 +125,7 @@ class CommentsControllerTest < ActionDispatch::IntegrationTest
     context "create action"do
       should "create a comment" do
         assert_difference("Comment.count", 1) do
-          post_authenticated comments_path, @user, params: {comment: FactoryBot.attributes_for(:comment, post_id: @post.id)}
+          post_auth comments_path, @user, params: {comment: FactoryBot.attributes_for(:comment, post_id: @post.id)}
         end
         comment = Comment.last
         assert_redirected_to post_path(comment.post)
@@ -133,7 +133,7 @@ class CommentsControllerTest < ActionDispatch::IntegrationTest
 
       should "not allow commenting on nonexistent posts" do
         assert_difference("Comment.count", 0) do
-          post_authenticated comments_path, @user, params: {comment: FactoryBot.attributes_for(:comment, post_id: -1)}
+          post_auth comments_path, @user, params: {comment: FactoryBot.attributes_for(:comment, post_id: -1)}
         end
         assert_redirected_to comments_path
       end
@@ -141,7 +141,7 @@ class CommentsControllerTest < ActionDispatch::IntegrationTest
 
     context "destroy action" do
       should "mark comment as deleted" do
-        delete_authenticated comment_path(@comment.id), @user
+        delete_auth comment_path(@comment.id), @user
         assert_equal(true, @comment.reload.is_deleted)
         assert_redirected_to @comment
       end
@@ -153,7 +153,7 @@ class CommentsControllerTest < ActionDispatch::IntegrationTest
       end
       
       should "mark comment as undeleted" do
-        post_authenticated undelete_comment_path(@comment.id), @user
+        post_auth undelete_comment_path(@comment.id), @user
         assert_equal(false, @comment.reload.is_deleted)
         assert_redirected_to(@comment)
       end

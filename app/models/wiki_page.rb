@@ -131,7 +131,7 @@ class WikiPage < ApplicationRecord
   end
 
   def validate_rename
-    return if !saved_change_to_attribute?(:title) || skip_secondary_validations
+    return if !will_save_change_to_title? || skip_secondary_validations
 
     tag_was = Tag.find_by_name(Tag.normalize_name(title_was))
     if tag_was.present? && tag_was.post_count > 0

@@ -22,7 +22,7 @@ class ForumTopicsController < ApplicationController
     params[:search] ||= {}
     params[:search][:order] ||= "sticky" if request.format == Mime::Type.lookup("text/html")
 
-    @query = ForumTopic.active.search(params[:search])
+    @query = ForumTopic.active.search(search_params)
     @forum_topics = @query.paginate(params[:page], :limit => per_page, :search_count => params[:search])
 
     respond_with(@forum_topics) do |format|
@@ -147,11 +147,11 @@ private
         end
 
         fmt.json do
-          render :nothing => true, :status => 403
+          render json: nil, :status => 403
         end
 
         fmt.xml do
-          render :nothing => true, :status => 403
+          render xml: nil, :status => 403
         end
       end
 

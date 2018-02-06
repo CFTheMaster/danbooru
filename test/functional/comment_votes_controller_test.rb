@@ -17,7 +17,7 @@ class CommentVotesControllerTest < ActionDispatch::IntegrationTest
     context "#create.json" do
       should "create a vote" do
         assert_difference("CommentVote.count", 1) do
-          post_authenticated comment_votes_path(comment_id: @comment.id, format: "json"), @user
+          post_auth comment_votes_path(comment_id: @comment.id, format: "json"), @user
           assert_response :success
           assert_equal("{\"success\": true}", @response.body.strip)
         end
@@ -26,7 +26,7 @@ class CommentVotesControllerTest < ActionDispatch::IntegrationTest
       should "fail silently on errors" do
         create(:comment_vote, comment: @comment, score: -1)
         assert_difference("CommentVote.count", 0) do
-          post_authenticated comment_votes_path(comment_id: @comment.id, score: "-1", format: "json"), @user
+          post_auth comment_votes_path(comment_id: @comment.id, score: "-1", format: "json"), @user
           assert_response 422
           assert_equal("{\"success\": false, \"errors\": \"Validation failed: You have already voted for this comment\"}", @response.body.strip)
         end
@@ -36,7 +36,7 @@ class CommentVotesControllerTest < ActionDispatch::IntegrationTest
     context "#create.js" do
       should "create a vote" do
         assert_difference("CommentVote.count", 1) do
-          post_authenticated comment_votes_path(comment_id: @comment.id, format: "json", score: 1), @user
+          post_auth comment_votes_path(comment_id: @comment.id, format: "json", score: 1), @user
           assert_response :success
         end
       end
@@ -44,7 +44,7 @@ class CommentVotesControllerTest < ActionDispatch::IntegrationTest
       should "fail on errors" do
         create(:comment_vote, :comment => @comment, :score => -1)
         assert_difference("CommentVote.count", 0) do
-          post_authenticated comment_votes_path(comment_id: @comment.id, :score => -1, format: "js"), @user
+          post_auth comment_votes_path(comment_id: @comment.id, :score => -1, format: "js"), @user
           assert_response 422
         end
       end

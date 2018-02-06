@@ -1,58 +1,61 @@
 require 'test_helper'
 
-class SavedSearchesControllerTest < ActionController::TestCase
+class SavedSearchesControllerTest < ActionDispatch::IntegrationTest
   context "The saved searches controller" do
     setup do
-      @user = FactoryBot.create(:user)
-      CurrentUser.user = @user
-      CurrentUser.ip_addr = "127.0.0.1"
+      @user = create(:user)
       mock_saved_search_service!
     end
 
     context "index action" do
       should "render" do
-        get :index, {}, { user_id: @user.id }
+        get_auth saved_searches_path, @user
         assert_response :success
       end
     end
 
     context "create action" do
       should "render" do
-        post :create, { saved_search: { query: "bkub", label_string: "artist" }}, { user_id: @user.id }
+        post_auth saved_searches_path, @user, params: { saved_search: { query: "bkub", label_string: "artist" }}
         assert_response :redirect
       end
 
       should "disable labels when the disable_labels param is given" do
-        post :create, { saved_search: { query: "bkub", disable_labels: "1" }}, { user_id: @user.id }
+        post_auth saved_searches_path, @user, params: { saved_search: { query: "bkub", disable_labels: "1" }}
         assert_equal(true, @user.reload.disable_categorized_saved_searches)
       end
     end
 
     context "edit action" do
       should "render" do
-        saved_search = FactoryBot.create(:saved_search, user: @user)
+        as_user do
+          @saved_search = create(:saved_search,1 user: @user)
+        end
 
-        get :edit, { id: saved_search.id }, { user_id: @user.id }
+        get_auth edit_saved_search_path(@saved_search), @user, params: { id: @saved_search.id }
         assert_response :success
       end
     end
 
     context "update action" do
       should "render" do
-        saved_search = FactoryBot.create(:saved_search, user: @user)
-        params = { id: saved_search.id, saved_search: { label_string: "foo" } }
-
-        put :update, params, { user_id: @user.id }
+        as_user do
+          @saved_search = create(:saved_search, user: @user)
+        end
+        params = { id: @saved_search.id, saved_search: { label_string: "foo" } }
+        put_auth saved_search_path(@saved_search), @user, params: params
         assert_redirected_to saved_searches_path
-        assert_equal(["foo"], saved_search.reload.labels)
+        assert_equal(["foo"], @saved_search.reload.labels)
       end
     end
 
     context "destroy action" do
       should "render" do
-        saved_search = FactoryBot.create(:saved_search, user: @user)
+        as_user do
+          @saved_search = create(:saved_search, user: @user)
+        end
 
-        delete :destroy, { id: saved_search.id }, { user_id: @user.id }
+        delete_auth saved_search_path(@saved_search), @user
         assert_redirected_to saved_searches_path
       end
     end

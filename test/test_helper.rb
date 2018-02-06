@@ -20,6 +20,7 @@ Dotenv.load(Rails.root + ".env.local")
 
 Shoulda::Matchers.configure do |config|
   config.integrate do |with|
+    with.test_framework :minitest
     with.library :rails
   end
 end
@@ -49,28 +50,28 @@ class ActionDispatch::IntegrationTest
   include PostArchiveTestHelper
   include PoolArchiveTestHelper
 
-  def method_authenticated(method, url, user, options)
-    api_key = ApiKey.generate!(user) unless user.api_key.present?
-    self.send(method, url, options.merge(headers: {"HTTP_AUTHORIZATION" => build_authorization_string(user, api_key)}))
+  def method_authenticated(method_name, url, user, options)
+    api_key = user.api_key || ApiKey.generate!(user)
+    self.send(method_name, url, options.merge(headers: {"HTTP_AUTHORIZATION" => build_authorization_string(user, api_key)}))
   end
 
   def build_authorization_string(user, api_key)
     "Basic " + Base64.strict_encode64("#{user.name}:#{api_key.key}")
   end
 
-  def get_authenticated(url, user, options = {})
+  def get_auth(url, user, options = {})
     method_authenticated(:get, url, user, options)
   end
 
-  def post_authenticated(url, user, options = {})
+  def post_auth(url, user, options = {})
     method_authenticated(:post, url, user, options)
   end
 
-  def put_authenticated(url, user, options = {})
+  def put_auth(url, user, options = {})
     method_authenticated(:put, url, user, options)
   end
 
-  def delete_authenticated(url, user, options = {})
+  def delete_auth(url, user, options = {})
     method_authenticated(:delete, url, user, options)
   end
 
@@ -79,6 +80,18 @@ class ActionDispatch::IntegrationTest
     record.save
     raise ActiveRecord::RecordInvalid.new(record) if record.errors.any?
     record
+  end
+
+  def as(user, &block)
+    CurrentUser.as(user, &block)
+  end
+
+  def as_user(&block)
+    CurrentUser.as(@user, &block)
+  end
+
+  def as_admin(&block)
+    CurrentUser.as_admin(&block)
   end
 
   def setup

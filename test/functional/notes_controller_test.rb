@@ -4,7 +4,7 @@ class NotesControllerTest < ActionDispatch::IntegrationTest
   context "The notes controller" do
     setup do
       @user = create(:user)
-      CurrentUser.as(@user) do
+      as_user do
         @note = create(:note, body: "000")
       end
     end
@@ -43,58 +43,58 @@ class NotesControllerTest < ActionDispatch::IntegrationTest
     context "create action" do
       should "create a note" do
         assert_difference("Note.count", 1) do
-          CurrentUser.as(@user) do
+          as_user do
             @post = create(:post)
           end
-          post_authenticated notes_path, @user, params: {:note => {:x => 0, :y => 0, :width => 10, :height => 10, :body => "abc", :post_id => @post.id}, :format => :json}
+          post_auth notes_path, @user, params: {:note => {:x => 0, :y => 0, :width => 10, :height => 10, :body => "abc", :post_id => @post.id}, :format => :json}
         end
       end
     end
 
     context "update action" do
       should "update a note" do
-        put_authenticated note_path(@note), @user, params: {:note => {:body => "xyz"}}
+        put_auth note_path(@note), @user, params: {:note => {:body => "xyz"}}
         assert_equal("xyz", @note.reload.body)
       end
 
       should "not allow changing the post id to another post" do
-        CurrentUser.as(@admin) do
+        as(@admin) do
           @other = create(:post)
         end
-        put_authenticated note_path(@note), @user, params: {:format => "json", :id => @note.id, :note => {:post_id => @other.id}}
+        put_auth note_path(@note), @user, params: {:format => "json", :id => @note.id, :note => {:post_id => @other.id}}
         assert_not_equal(@other.id, @note.reload.post_id)
       end
     end
 
     context "destroy action" do
       should "destroy a note" do
-        delete_authenticated note_path(@note), @user
+        delete_auth note_path(@note), @user
         assert_equal(false, @note.reload.is_active?)
       end
     end
 
     context "revert action" do
       setup do
-        CurrentUser.as(@user) do
-          Timecop.travel(1.day.from_now) do
+        as_user do
+          travel_to(1.day.from_now) do
             @note.update(:body => "111")
           end
-          Timecop.travel(2.days.from_now) do
+          travel_to(2.days.from_now) do
             @note.update(:body => "222")
           end
         end
       end
 
       should "revert to a previous version" do
-        put_authenticated revert_note_path(@note), @user, params: {:version_id => @note.versions.first.id}
+        put_auth revert_note_path(@note), @user, params: {:version_id => @note.versions.first.id}
         assert_equal("000", @note.reload.body)
       end
 
       should "not allow reverting to a previous version of another note" do
-        CurrentUser.as(@user) do
+        as_user do
           @note2 = create(:note, :body => "note 2")
         end
-        put_authenticated revert_note_path(@note), @user, params: { :version_id => @note2.versions.first.id }
+        put_auth revert_note_path(@note), @user, params: { :version_id => @note2.versions.first.id }
         assert_not_equal(@note.reload.body, @note2.body)
         assert_response :missing
       end

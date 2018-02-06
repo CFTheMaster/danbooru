@@ -6,7 +6,7 @@ class ForumPostsControllerTest < ActionDispatch::IntegrationTest
       @user = create(:user)
       @other_user = create(:user)
       @mod = create(:moderator_user)
-      CurrentUser.scoped(@user) do
+      as_user do
         @forum_topic = create(:forum_topic, :title => "my forum topic")
         @forum_post = create(:forum_post, :topic_id => @forum_topic.id, :body => "xxx")
       end
@@ -40,7 +40,7 @@ class ForumPostsControllerTest < ActionDispatch::IntegrationTest
 
       context "with private topics" do
         setup do
-          CurrentUser.as(@mod) do
+          as(@mod) do
             @mod_topic = create(:mod_up_forum_topic)
             @mod_posts = 2.times.map do
               create(:forum_post, :topic_id => @mod_topic.id)
@@ -58,7 +58,7 @@ class ForumPostsControllerTest < ActionDispatch::IntegrationTest
         end
 
         should "list only permitted posts for mods" do
-          get_authenticated forum_posts_path, @mod
+          get_auth forum_posts_path, @mod
 
           assert_response :success
           assert_select "#forum-post-#{@mod_posts[0].id}"
@@ -68,24 +68,24 @@ class ForumPostsControllerTest < ActionDispatch::IntegrationTest
 
     context "edit action" do
       should "render if the editor is the creator of the topic" do
-        get_authenticated edit_forum_post_path(@forum_post), @user
+        get_auth edit_forum_post_path(@forum_post), @user
         assert_response :success
       end
 
       should "render if the editor is a moderator" do
-        get_authenticated edit_forum_post_path(@forum_post), @mod
+        get_auth edit_forum_post_path(@forum_post), @mod
         assert_response :success
       end
 
       should "fail if the editor is not the creator of the topic and is not a moderator" do
-        get_authenticated edit_forum_post_path(@forum_post), @other_user
+        get_auth edit_forum_post_path(@forum_post), @other_user
         assert_response(403)
       end
     end
 
     context "new action" do
       should "render" do
-        get_authenticated new_forum_post_path, @user, params: {:topic_id => @forum_topic.id}
+        get_auth new_forum_post_path, @user, params: {:topic_id => @forum_topic.id}
         assert_response :success
       end
     end
@@ -93,7 +93,7 @@ class ForumPostsControllerTest < ActionDispatch::IntegrationTest
     context "create action" do
       should "create a new forum post" do
         assert_difference("ForumPost.count", 1) do
-          post_authenticated forum_posts_path, @user, params: {:forum_post => {:body => "xaxaxa", :topic_id => @forum_topic.id}}
+          post_auth forum_posts_path, @user, params: {:forum_post => {:body => "xaxaxa", :topic_id => @forum_topic.id}}
         end
 
         forum_post = ForumPost.last
@@ -103,7 +103,7 @@ class ForumPostsControllerTest < ActionDispatch::IntegrationTest
 
     context "destroy action" do
       should "destroy the posts" do
-        delete_authenticated forum_post_path(@forum_post), @mod
+        delete_auth forum_post_path(@forum_post), @mod
         assert_redirected_to(forum_post_path(@forum_post))
         @forum_post.reload
         assert_equal(true, @forum_post.is_deleted?)
@@ -112,13 +112,13 @@ class ForumPostsControllerTest < ActionDispatch::IntegrationTest
 
     context "undelete action" do
       setup do
-        CurrentUser.as(@mod) do
+        as(@mod) do
           @forum_post.update(is_deleted: true)
         end
       end
 
       should "restore the post" do
-        post_authenticated undelete_forum_post_path(@forum_post), @mod
+        post_auth undelete_forum_post_path(@forum_post), @mod
         assert_redirected_to(forum_post_path(@forum_post))
         @forum_post.reload
         assert_equal(false, @forum_post.is_deleted?)

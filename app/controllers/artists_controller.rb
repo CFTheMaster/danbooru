@@ -37,7 +37,6 @@ class ArtistsController < ApplicationController
   end
 
   def index
-    search_params = params[:search].present? ? params[:search] : params
     @artists = Artist.includes(:urls).search(search_params).paginate(params[:page], :limit => params[:limit], :search_count => params[:search])
     respond_with(@artists) do |format|
       format.xml do
@@ -114,20 +113,6 @@ class ArtistsController < ApplicationController
   end
 
 private
-
-  def artist_params
-    fields = %i(body notes name url_string other_names other_names_comma group_name notes)
-    
-    if CurrentUser.is_builder?
-      fields += %i(is_active)
-    end
-    
-    if CurrentUser.is_admin?
-      fields += %i(is_banned)
-    end
-
-    params.fetch(:artist, {}).permit(fields)
-  end
 
   def load_artist
     @artist = Artist.find(params[:id])

@@ -4,7 +4,7 @@ class FavoriteGroupsControllerTest < ActionDispatch::IntegrationTest
   context "The favorite groups controller" do
     setup do
       @user = create(:user)
-      CurrentUser.as(@user) do
+      as_user do
         @favgroup = create(:favorite_group)
       end
     end
@@ -25,21 +25,21 @@ class FavoriteGroupsControllerTest < ActionDispatch::IntegrationTest
 
     context "new action" do
       should "render" do
-        get_authenticated new_favorite_group_path, @user
+        get_auth new_favorite_group_path, @user
         assert_response :success
       end
     end
 
     context "create action" do
       should "render" do
-        post_authenticated favorite_groups_path, @user, params: { favorite_group: FactoryBot.attributes_for(:favorite_group) }
+        post_auth favorite_groups_path, @user, params: { favorite_group: FactoryBot.attributes_for(:favorite_group) }
         assert_redirected_to favorite_groups_path
       end
     end
 
     context "edit action" do
       should "render" do
-        get_authenticated edit_favorite_group_path(@favgroup), @user
+        get_auth edit_favorite_group_path(@favgroup), @user
         assert_response :success
       end
     end
@@ -47,7 +47,7 @@ class FavoriteGroupsControllerTest < ActionDispatch::IntegrationTest
     context "update action" do
       should "render" do
         params = { favorite_group: { name: "foo" } }
-        put_authenticated favorite_group_path(@favgroup), @user, params: params
+        put_auth favorite_group_path(@favgroup), @user, params: params
         assert_redirected_to @favgroup
         assert_equal("foo", @favgroup.reload.name)
       end
@@ -55,18 +55,18 @@ class FavoriteGroupsControllerTest < ActionDispatch::IntegrationTest
 
     context "destroy action" do
       should "render" do
-        delete_authenticated favorite_group_path(@favgroup), @user
+        delete_auth favorite_group_path(@favgroup), @user
         assert_redirected_to favorite_groups_path
       end
     end
 
     context "add_post action" do
       should "render" do
-        CurrentUser.as(@user) do
+        as_user do
           @post = FactoryBot.create(:post)
         end
 
-        put_authenticated add_post_favorite_group_path(@favgroup), @user, params: {post_id: @post.id, format: "js"}
+        put_auth add_post_favorite_group_path(@favgroup), @user, params: {post_id: @post.id, format: "js"}
         assert_response :success
         @favgroup.reload
         assert_equal([@post.id], @favgroup.post_id_array)

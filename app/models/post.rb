@@ -58,6 +58,7 @@ class Post < ApplicationRecord
   has_many :replacements, class_name: "PostReplacement", :dependent => :destroy
 
   serialize :keeper_data, JSON
+  attr_accessor :old_tag_string, :old_parent_id, :old_source, :old_rating, :has_constraints, :disable_versioning, :view_count
 
   if PostArchive.enabled?
     has_many :versions, lambda {order("post_versions.updated_at ASC")}, :class_name => "PostArchive", :dependent => :destroy
@@ -641,7 +642,7 @@ class Post < ApplicationRecord
     end
 
     def tag_array_was
-      @tag_array_was ||= Tag.scan_tags(tag_string_was)
+      @tag_array_was ||= Tag.scan_tags(tag_string_before_last_save)
     end
 
     def tags
@@ -723,15 +724,15 @@ class Post < ApplicationRecord
         old_parent_id = old_parent_id.to_i
       end
       if old_parent_id == parent_id
-        self.parent_id = parent_id_was
+        self.parent_id = parent_id_before_last_save
       end
 
       if old_source == source.to_s
-        self.source = source_was
+        self.source = source_before_last_save
       end
 
       if old_rating == rating
-        self.rating = rating_was
+        self.rating = rating_before_last_save
       end
     end
 
@@ -1378,10 +1379,10 @@ class Post < ApplicationRecord
     end
 
     def update_parent_on_save
-      return unless saved_change_to_attribute?(:parent_id) || saved_change_to_attribute?(:is_deleted)
+      return unless saved_change_to_parent_id? || saved_change_to_is_deleted?
 
       parent.update_has_children_flag if parent.present?
-      Post.find(parent_id_was).update_has_children_flag if parent_id_was.present?
+      Post.find(parent_id_before_last_save).update_has_children_flag if parent_id_before_last_save.present?
     end
 
     def give_favorites_to_parent(options = {})
@@ -1511,9 +1512,13 @@ class Post < ApplicationRecord
 
   module VersionMethods
     def create_version(force = false)
-      if new_record? || saved_change_to_attribute?(:rating) || saved_change_to_attribute?(:source) || saved_change_to_attribute?(:parent_id) || saved_change_to_attribute?(:tag_string) || force
+      if new_record? || saved_change_to_watched_attributes? || force
         create_new_version
       end
+    end
+
+    def saved_change_to_watched_attributes?
+      saved_change_to_rating? || saved_change_to_source? || saved_change_to_parent_id? || saved_change_to_tag_string?
     end
 
     def merge_version?
@@ -1783,9 +1788,9 @@ class Post < ApplicationRecord
     end
 
     def updater_can_change_rating
-      if saved_change_to_attribute?(:rating) && is_rating_locked?
+      if saved_change_to_rating? && is_rating_locked?
         # Don't forbid changes if the rating lock was just now set in the same update.
-        if !saved_change_to_attribute?(:is_rating_locked)
+        if !saved_change_to_is_rating_locked?
           errors.add(:rating, "is locked and cannot be changed. Unlock the post first.")
         end
       end

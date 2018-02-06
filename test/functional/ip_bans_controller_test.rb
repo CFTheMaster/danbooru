@@ -8,7 +8,7 @@ class IpBansControllerTest < ActionDispatch::IntegrationTest
 
     context "new action" do
       should "render" do
-        get_authenticated new_ip_ban_path, @admin
+        get_auth new_ip_ban_path, @admin
         assert_response :success
       end
     end
@@ -16,26 +16,26 @@ class IpBansControllerTest < ActionDispatch::IntegrationTest
     context "create action" do
       should "create a new ip ban" do
         assert_difference("IpBan.count", 1) do
-          post_authenticated ip_bans_path, @admin, params: {:ip_ban => {:ip_addr => "1.2.3.4", :reason => "xyz"}}
+          post_auth ip_bans_path, @admin, params: {:ip_ban => {:ip_addr => "1.2.3.4", :reason => "xyz"}}
         end
       end
     end
 
     context "index action" do
       setup do
-        CurrentUser.as(@admin) do
+        as(@admin) do
           create(:ip_ban)
         end
       end
 
       should "render" do
-        get_authenticated ip_bans_path, @admin
+        get_auth ip_bans_path, @admin
         assert_response :success
       end
 
       context "with search parameters" do
         should "render" do
-          get_authenticated ip_bans_path, @admin, params: {:search => {:ip_addr => "1.2.3.4"}}
+          get_auth ip_bans_path, @admin, params: {:search => {:ip_addr => "1.2.3.4"}}
           assert_response :success
         end
       end
@@ -43,14 +43,14 @@ class IpBansControllerTest < ActionDispatch::IntegrationTest
 
     context "destroy action" do
       setup do
-        CurrentUser.as(@admin) do
+        as(@admin) do
           @ip_ban = create(:ip_ban)
         end
       end
 
       should "destroy an ip ban" do
         assert_difference("IpBan.count", -1) do
-          delete_authenticated ip_ban_path(@ip_ban), @admin, params: {:format => "js"}
+          delete_auth ip_ban_path(@ip_ban), @admin, params: {:format => "js"}
         end
       end
     end

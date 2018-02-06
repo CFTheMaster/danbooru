@@ -7,20 +7,20 @@ class ForumTopicsControllerTest < ActionDispatch::IntegrationTest
       @other_user = create(:user)
       @mod = create(:moderator_user)
 
-      CurrentUser.as(@user) do
+      as_user do
         @forum_topic = create(:forum_topic, :title => "my forum topic", :original_post_attributes => {:body => "xxx"})
       end
     end
 
     context "for a level restricted topic" do
       setup do
-        CurrentUser.as(@mod) do
+        as(@mod) do
           @forum_topic.update(min_level: User::Levels::MODERATOR)
         end
       end
 
       should "not allow users to see the topic" do
-        get_authenticated forum_topic_path(@forum_topic), @user
+        get_auth forum_topic_path(@forum_topic), @user
         assert_redirected_to forum_topics_path
       end
 
@@ -28,30 +28,30 @@ class ForumTopicsControllerTest < ActionDispatch::IntegrationTest
         @gold_user = create(:gold_user)
 
         # An open topic should bump...
-        CurrentUser.as(@gold_user) do
+        as(@gold_user) do
           @open_topic = create(:forum_topic)
         end
         @gold_user.reload
-        CurrentUser.as(@gold_user) do
+        as(@gold_user) do
           assert(@gold_user.has_forum_been_updated?)
         end
 
         # Marking it as read should clear it...
-        CurrentUser.as(@gold_user) do
-          post_authenticated mark_all_as_read_forum_topics_path, @gold_user
+        as(@gold_user) do
+          post_auth mark_all_as_read_forum_topics_path, @gold_user
         end
         @gold_user.reload
         assert_redirected_to(forum_topics_path)
-        CurrentUser.as(@gold_user) do
+        as(@gold_user) do
           assert(!@gold_user.has_forum_been_updated?)
         end
 
         # Then adding an unread private topic should not bump.
-        CurrentUser.as(@mod) do
+        as(@mod) do
           create(:forum_post, :topic_id => @forum_topic.id)
         end
         @gold_user.reload
-        CurrentUser.as(@gold_user) do
+        as(@gold_user) do
           assert_equal(false, @gold_user.has_forum_been_updated?)
         end
       end
@@ -64,13 +64,13 @@ class ForumTopicsControllerTest < ActionDispatch::IntegrationTest
       end
 
       should "record a topic visit for html requests" do
-        get_authenticated forum_topic_path(@forum_topic), @user
+        get_auth forum_topic_path(@forum_topic), @user
         @user.reload
         assert_not_nil(@user.last_forum_read_at)
       end
 
       should "not record a topic visit for non-html requests" do
-        get_authenticated forum_topic_path(@forum_topic), @user, params: {format: :json}
+        get_auth forum_topic_path(@forum_topic), @user, params: {format: :json}
         @user.reload
         assert_nil(@user.last_forum_read_at)
       end
@@ -83,7 +83,7 @@ class ForumTopicsControllerTest < ActionDispatch::IntegrationTest
 
     context "index action" do
       setup do
-        CurrentUser.as(@user) do
+        as_user do
           @topic1 = create(:forum_topic, :is_sticky => true, :original_post_attributes => {:body => "xxx"})
           @topic2 = create(:forum_topic, :original_post_attributes => {:body => "xxx"})
         end
@@ -126,24 +126,24 @@ class ForumTopicsControllerTest < ActionDispatch::IntegrationTest
 
     context "edit action" do
       should "render if the editor is the creator of the topic" do
-        get_authenticated edit_forum_topic_path(@forum_topic), @user
+        get_auth edit_forum_topic_path(@forum_topic), @user
         assert_response :success
       end
 
       should "render if the editor is a moderator" do
-        get_authenticated edit_forum_topic_path(@forum_topic), @mod
+        get_auth edit_forum_topic_path(@forum_topic), @mod
         assert_response :success
       end
 
       should "fail if the editor is not the creator of the topic and is not a moderator" do
-        get_authenticated edit_forum_topic_path(@forum_topic), @other_user
+        get_auth edit_forum_topic_path(@forum_topic), @other_user
         assert_response(403)
       end
     end
 
     context "new action" do
       should "render" do
-        get_authenticated new_forum_topic_path, @user
+        get_auth new_forum_topic_path, @user
         assert_response :success
       end
     end
@@ -151,7 +151,7 @@ class ForumTopicsControllerTest < ActionDispatch::IntegrationTest
     context "create action" do
       should "create a new forum topic and post" do
         assert_difference(["ForumPost.count", "ForumTopic.count"], 1) do
-          post_authenticated forum_topics_path, @user, params: {:forum_topic => {:title => "bababa", :original_post_attributes => {:body => "xaxaxa"}}}
+          post_auth forum_topics_path, @user, params: {:forum_topic => {:title => "bababa", :original_post_attributes => {:body => "xaxaxa"}}}
         end
 
         forum_topic = ForumTopic.last
@@ -161,13 +161,13 @@ class ForumTopicsControllerTest < ActionDispatch::IntegrationTest
 
     context "destroy action" do
       setup do
-        CurrentUser.as(@user) do
+        as_user do
           @post = create(:forum_post, :topic_id => @forum_topic.id)
         end
       end
 
       should "destroy the topic and any associated posts" do
-        delete_authenticated forum_topic_path(@forum_topic), @mod
+        delete_auth forum_topic_path(@forum_topic), @mod
         assert_redirected_to(forum_topic_path(@forum_topic))
         @forum_topic.reload
         assert(@forum_topic.is_deleted?)
@@ -176,13 +176,13 @@ class ForumTopicsControllerTest < ActionDispatch::IntegrationTest
 
     context "undelete action" do
       setup do
-        CurrentUser.as(@mod) do
+        as(@mod) do
           @forum_topic.update(is_deleted: true)
         end
       end
 
       should "restore the topic" do
-        post_authenticated undelete_forum_topic_path(@forum_topic), @mod
+        post_auth undelete_forum_topic_path(@forum_topic), @mod
         assert_redirected_to(forum_topic_path(@forum_topic))
         @forum_topic.reload
         assert(!@forum_topic.is_deleted?)

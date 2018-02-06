@@ -3,7 +3,7 @@ require 'test_helper'
 class ArtistsControllerTest < ActionDispatch::IntegrationTest
   def assert_artist_found(expected_artist, source_url = nil)
     if source_url
-      get_authenticated finder_artists_path(format: "json", url: source_url), @user
+      get_auth finder_artists_path(format: "json", url: source_url), @user
     end
     assert_response :success
     json = JSON.parse(response.body)
@@ -12,7 +12,7 @@ class ArtistsControllerTest < ActionDispatch::IntegrationTest
   end
 
   def assert_artist_not_found(source_url)
-    get_authenticated finder_artists_path(format: "json", url: source_url), @user
+    get_auth finder_artists_path(format: "json", url: source_url), @user
     assert_response :success
     json = JSON.parse(response.body)
     assert_equal(0, json.size, "Testing URL: #{source_url}")
@@ -22,7 +22,7 @@ class ArtistsControllerTest < ActionDispatch::IntegrationTest
     setup do
       @admin = create(:admin_user)
       @user = create(:user)
-      CurrentUser.scoped(@user) do
+      as_user do
         @artist = create(:artist, notes: "message")
         @masao = create(:artist, name: "masao", url_string: "http://www.pixiv.net/member.php?id=32777")
         @artgerm = create(:artist, name: "artgerm", url_string: "http://artgerm.deviantart.com/")
@@ -30,22 +30,22 @@ class ArtistsControllerTest < ActionDispatch::IntegrationTest
     end
 
     should "get the new page" do
-      get_authenticated new_artist_path, @user
+      get_auth new_artist_path, @user
       assert_response :success
     end
 
     should "get the show_or_new page for an existing artist" do
-      get_authenticated show_or_new_artists_path(name: "masao"), @user
+      get_auth show_or_new_artists_path(name: "masao"), @user
       assert_redirected_to(@masao)
     end
 
     should "get the show_or_new page for a nonexisting artist" do
-      get_authenticated show_or_new_artists_path(name: "nobody"), @user
+      get_auth show_or_new_artists_path(name: "nobody"), @user
       assert_response :success
     end
 
     should "get the edit page" do
-      get_authenticated edit_artist_path(@artist.id), @user
+      get_auth edit_artist_path(@artist.id), @user
       assert_response :success
     end
 
@@ -66,7 +66,7 @@ class ArtistsControllerTest < ActionDispatch::IntegrationTest
     end
 
     should "ban an artist" do
-      put_authenticated ban_artist_path(@artist.id), @admin
+      put_auth ban_artist_path(@artist.id), @admin
       assert_redirected_to(@artist)
       @artist.reload
       assert_equal(true, @artist.is_banned?)
@@ -74,11 +74,11 @@ class ArtistsControllerTest < ActionDispatch::IntegrationTest
     end
 
     should "unban an artist" do
-      CurrentUser.as_admin do
+      as_admin do
         @artist.ban!
       end
 
-      put_authenticated unban_artist_path(@artist.id), @admin
+      put_auth unban_artist_path(@artist.id), @admin
       assert_redirected_to(@artist)
       @artist.reload
       assert_equal(false, @artist.is_banned?)
@@ -112,7 +112,7 @@ class ArtistsControllerTest < ActionDispatch::IntegrationTest
       attributes = FactoryBot.attributes_for(:artist)
       assert_difference("Artist.count", 1) do
         attributes.delete(:is_active)
-        post_authenticated artists_path, @user, params: {artist: attributes}
+        post_auth artists_path, @user, params: {artist: attributes}
       end
       artist = Artist.find_by_name(attributes[:name])
       assert_not_nil(artist)
@@ -121,7 +121,7 @@ class ArtistsControllerTest < ActionDispatch::IntegrationTest
 
     context "with an artist that has notes" do
       setup do
-        CurrentUser.as(@admin) do
+        as(@admin) do
           @artist = create(:artist, name: "aaa", notes: "testing")
         end
         @wiki_page = @artist.wiki_page
@@ -130,8 +130,8 @@ class ArtistsControllerTest < ActionDispatch::IntegrationTest
 
       should "update an artist" do
         old_timestamp = @wiki_page.updated_at
-        Timecop.travel(1.minute.from_now) do
-          put_authenticated artist_path(@artist.id), @user, params: {artist: {notes: "rex"}}
+        travel_to(1.minute.from_now) do
+          put_auth artist_path(@artist.id), @user, params: {artist: {notes: "rex"}}
         end
         @artist.reload
         @wiki_page = @artist.wiki_page
@@ -144,8 +144,8 @@ class ArtistsControllerTest < ActionDispatch::IntegrationTest
         old_timestamp = @wiki_page.updated_at
         old_updater_id = @wiki_page.updater_id
 
-        Timecop.travel(1.minutes.from_now) do
-          CurrentUser.as(@another_user) do
+        travel_to(1.minutes.from_now) do
+          as(@another_user) do
             @artist.update(notes: "testing")
           end
         end
@@ -159,7 +159,7 @@ class ArtistsControllerTest < ActionDispatch::IntegrationTest
       context "when renaming an artist" do
         should "automatically rename the artist's wiki page" do
           assert_difference("WikiPage.count", 0) do
-            put_authenticated artist_path(@artist.id), @user, params: {artist: {name: "bbb", notes: "more testing"}}
+            put_auth artist_path(@artist.id), @user, params: {artist: {name: "bbb", notes: "more testing"}}
           end
           @wiki_page.reload
           assert_equal("bbb", @wiki_page.title)
@@ -167,10 +167,10 @@ class ArtistsControllerTest < ActionDispatch::IntegrationTest
         end
 
         should "merge the new notes with the existing wiki page's contents if a wiki page for the new name already exists" do
-          CurrentUser.as(@user) do
+          as_user do
             @existing_wiki_page = create(:wiki_page, title: "bbb", body: "xxx")
           end
-          put_authenticated artist_path(@artist.id), @user, params: {artist: {name: "bbb", notes: "yyy"}}
+          put_auth artist_path(@artist.id), @user, params: {artist: {name: "bbb", notes: "yyy"}}
           @existing_wiki_page.reload
           assert_equal("bbb", @existing_wiki_page.title)
           assert_equal("xxx\n\nyyy", @existing_wiki_page.body)
@@ -180,7 +180,7 @@ class ArtistsControllerTest < ActionDispatch::IntegrationTest
 
     should "delete an artist" do
       @builder = create(:builder_user)
-      delete_authenticated artist_path(@artist.id), @builder
+      delete_auth artist_path(@artist.id), @builder
       assert_redirected_to(artist_path(@artist.id))
       @artist.reload
       assert_equal(false, @artist.is_active)
@@ -188,26 +188,26 @@ class ArtistsControllerTest < ActionDispatch::IntegrationTest
 
     should "undelete an artist" do
       @builder = create(:builder_user)
-      post_authenticated undelete_artist_path(@artist.id), @builder
+      post_auth undelete_artist_path(@artist.id), @builder
       assert_redirected_to(artist_path(@artist.id))
       assert_equal(true, @artist.reload.is_active)
     end
 
     context "reverting an artist" do
       should "work" do
-        CurrentUser.as(@user) do
+        as_user do
           @artist.update(name: "xyz")
           @artist.update(name: "abc")
         end
         version = @artist.versions.first
-        put_authenticated revert_artist_path(@artist.id), @user, params: {version_id: version.id}
+        put_auth revert_artist_path(@artist.id), @user, params: {version_id: version.id}
       end
 
       should "not allow reverting to a previous version of another artist" do
-        CurrentUser.as(@user) do
+        as_user do
           @artist2 = create(:artist)
         end
-        put_authenticated artist_path(@artist.id), @user, params: {version_id: @artist2.versions.first.id}
+        put_auth artist_path(@artist.id), @user, params: {version_id: @artist2.versions.first.id}
         @artist.reload
         assert_not_equal(@artist.name, @artist2.name)
         assert_redirected_to(artist_path(@artist.id))

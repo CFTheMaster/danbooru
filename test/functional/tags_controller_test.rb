@@ -1,44 +1,37 @@
 require 'test_helper'
 
-class TagsControllerTest < ActionController::TestCase
+class TagsControllerTest < ActionDispatch::IntegrationTest
   context "The tags controller" do
     setup do
-      @user = FactoryBot.create(:builder_user)
-      CurrentUser.user = @user
-      CurrentUser.ip_addr = "127.0.0.1"
-
-      @tag = FactoryBot.create(:tag, name: "touhou", category: Tag.categories.copyright, post_count: 1)
-    end
-
-    teardown do
-      CurrentUser.user = nil
-      CurrentUser.ip_addr = nil
+      @user = create(:builder_user)
+      as_user do
+        @tag = create(:tag, name: "touhou", category: Tag.categories.copyright, post_count: 1)
+      end
     end
 
     context "edit action" do
       should "render" do
-        get :edit, {:id => @tag.id}, {:user_id => @user.id}
+        get_auth tag_path(@tag), @user, params: {:id => @tag.id}
         assert_response :success
       end
     end
 
     context "index action" do
       should "render" do
-        get :index
+        get tags_path
         assert_response :success
       end
 
       context "with search parameters" do
         should "render" do
-          get :index, {:search => {:name_matches => "touhou"}}
+          get tags_path, params: {:search => {:name_matches => "touhou"}}
           assert_response :success
         end
       end
 
       context "with blank search parameters" do
         should "strip the blank parameters with a redirect" do
-          get :index, { search: { name: "touhou", category: "" } }
-
+          get tags_path, params: { search: { name: "touhou", category: "" } }
           assert_redirected_to tags_path(search: { name: "touhou" })
         end
       end
@@ -46,57 +39,58 @@ class TagsControllerTest < ActionController::TestCase
 
     context "autocomplete action" do
       should "render" do
-        get :autocomplete, { search: { name_matches: "t" }, format: :json }
+        get autocomplete_tags_path, params: { search: { name_matches: "t" }, format: :json }
         assert_response :success
       end
     end
 
     context "show action" do
       should "render" do
-        get :show, {:id => @tag.id}
+        get tag_path(@tag)
         assert_response :success
       end
     end
 
     context "update action" do
       setup do
-        @mod = FactoryBot.create(:moderator_user)
+        @mod = create(:moderator_user)
       end
 
       should "update the tag" do
-        post :update, {:id => @tag.id, :tag => {:category => Tag.categories.general}}, {:user_id => @user.id}
+        put_auth tag_path(@tag), @user, params: {:tag => {:category => Tag.categories.general}}
         assert_redirected_to tag_path(@tag)
         assert_equal(Tag.categories.general, @tag.reload.category)
       end
 
       should "lock the tag for a moderator" do
-        CurrentUser.user = @mod
-        post :update, { id: @tag.id, tag: { is_locked: true } }, { user_id: @mod.id }
+        put_auth tag_path(@tag), @mod, params: { tag: { is_locked: true } }
 
         assert_redirected_to @tag
         assert_equal(true, @tag.reload.is_locked)
       end
 
       should "not lock the tag for a user" do
-        post :update, {id: @tag.id, tag: { is_locked: true }}, { user_id: @user.id }
+        put_auth tag_path(@tag), @user, params: {tag: { is_locked: true }}
 
         assert_equal(false, @tag.reload.is_locked)
       end
 
       context "for a tag with >50 posts" do
         setup do
-          @tag.update(post_count: 100)
+          as_user do
+            @tag.update(post_count: 100)
+          end
         end
 
         should "not update the category for a member" do
-          CurrentUser.user = FactoryBot.create(:member_user)
-          post :update, {id: @tag.id, tag: { category: Tag.categories.general }}, {user_id: CurrentUser.id}
+          @member = create(:member_user)
+          put_auth tag_path(@tag), @member, params: {tag: { category: Tag.categories.general }}
 
           assert_not_equal(Tag.categories.general, @tag.reload.category)
         end
 
         should "update the category for a builder" do
-          post :update, {id: @tag.id, tag: { category: Tag.categories.general }}, {user_id: @user.id}
+          put_auth tag_path(@tag), @user, params: {tag: { category: Tag.categories.general }}
 
           assert_redirected_to @tag
           assert_equal(Tag.categories.general, @tag.reload.category)
@@ -104,8 +98,10 @@ class TagsControllerTest < ActionController::TestCase
       end
 
       should "not change category when the tag is too large to be changed by a builder" do
-        @tag.update(category: Tag.categories.general, post_count: 1001)
-        post :update, {:id => @tag.id, :tag => {:category => Tag.categories.artist}}, {:user_id => @user.id}
+        as_user do
+          @tag.update(category: Tag.categories.general, post_count: 1001)
+        end
+        put_auth tag_path(@tag), @user, params: {:tag => {:category => Tag.categories.artist}}
 
         assert_response :forbidden
         assert_equal(Tag.categories.general, @tag.reload.category)

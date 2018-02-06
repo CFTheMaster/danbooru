@@ -15,7 +15,6 @@ FactoryBot.define do
     factory(:banned_user) do
       transient { ban_duration 3 }
       is_banned true
-      after(:create) { |user, ctx| create(:ban, user: user, duration: ctx.ban_duration) }
     end
 
     factory(:member_user) do

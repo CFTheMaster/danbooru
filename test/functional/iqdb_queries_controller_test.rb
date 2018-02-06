@@ -4,7 +4,7 @@ class IqdbQueriesControllerTest < ActionDispatch::IntegrationTest
   context "The iqdb controller" do
     setup do
       @user = create(:user)
-      CurrentUser.as(@user) do
+      as_user do
         @posts = FactoryBot.create_list(:post, 2)
       end
       mock_iqdb_service!
@@ -13,21 +13,21 @@ class IqdbQueriesControllerTest < ActionDispatch::IntegrationTest
     context "create action" do
       should "render with a post_id" do
         mock_iqdb_matches!(@posts[0], @posts)
-        post_authenticated iqdb_queries_path, @user, params: { post_id: @posts[0].id, format: "js" }
+        post_auth iqdb_queries_path, @user, params: { post_id: @posts[0].id, format: "js" }
         
         assert_response :success
       end
 
       should "render with an url" do
         mock_iqdb_matches!(@posts[0].source, @posts)
-        post_authenticated iqdb_queries_path, @user, params: { url: @posts[0].source }
+        post_auth iqdb_queries_path, @user, params: { url: @posts[0].source }
 
         assert_response :success
       end
 
       should "render for a json response" do
         mock_iqdb_matches!(@posts[0].source, @posts)
-        get_authenticated iqdb_queries_path, @user, params: { url: @posts[0].source, format: "json" }
+        get_auth iqdb_queries_path, @user, params: { url: @posts[0].source, format: "json" }
 
         assert_response :success
       end

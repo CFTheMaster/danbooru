@@ -7,7 +7,7 @@ gem "sprockets-rails", :require => "sprockets/railtie"
 gem "uglifier"
 gem "therubyracer", :platforms => :ruby
 gem "rails", "~> 5.1"
-gem "pg", "~> 0.21.0" # bug in rails, fixed in https://github.com/rails/rails/issues/31673
+gem "pg"
 gem "dalli", :platforms => :ruby
 gem "memcache-client", :platforms => [:mswin, :mingw, :x64_mingw]
 gem "tzinfo-data", :platforms => [:mswin, :mingw, :x64_mingw]
@@ -47,6 +47,7 @@ gem 'addressable'
 gem 'httparty'
 gem 'rakismet'
 gem 'recaptcha', require: "recaptcha/rails"
+gem 'activemodel-serializers-xml'
 
 # needed for looser jpeg header compat
 gem 'ruby-imagespec', :require => "image_spec", :git => "https://github.com/r888888888/ruby-imagespec.git", :branch => "exif-fixes"
@@ -73,7 +74,7 @@ end
 group :test do
   gem "shoulda-context"
   gem "shoulda-matchers"
-  gem "factory_bot_rails"
+  gem "factory_bot"
   gem "mocha", :require => "mocha/setup"
   gem "ffaker"
   gem "simplecov", :require => false

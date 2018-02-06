@@ -61,9 +61,9 @@ private
 
     if user.level_changed?
       if user.level > user.level_was
-        messages << "You have been promoted to a #{user.level_string} level account from #{user.level_string_was}."
+        messages << "You have been promoted to a #{user.level_string} level account from #{user.level_string_before_last_save}."
       elsif user.level < user.level_was
-        messages << "You have been demoted to a #{user.level_string} level account from #{user.level_string_was}."
+        messages << "You have been demoted to a #{user.level_string} level account from #{user.level_string_before_last_save}."
       end
     end
 

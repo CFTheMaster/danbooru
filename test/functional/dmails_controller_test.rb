@@ -5,7 +5,7 @@ class DmailsControllerTest < ActionDispatch::IntegrationTest
     setup do
       @user = create(:user)
       @unrelated_user = create(:user)
-      CurrentUser.as(@user) do
+      as_user do
         @dmail = create(:dmail, :owner => @user)
       end
     end
@@ -17,25 +17,25 @@ class DmailsControllerTest < ActionDispatch::IntegrationTest
 
     context "new action" do
       should "get the page" do
-        get_authenticated new_dmail_path, @user
+        get_auth new_dmail_path, @user
         assert_response :success
       end
 
       context "with a respond_to_id" do
         should "check privileges" do
           @user2 = create(:user)
-          get_authenticated new_dmail_path, @user2, params: {:respond_to_id => @dmail.id}
+          get_auth new_dmail_path, @user2, params: {:respond_to_id => @dmail.id}
           assert_response 403
         end
 
         should "prefill the fields" do
-          get_authenticated new_dmail_path, @user, params: {:respond_to_id => @dmail.id}
+          get_auth new_dmail_path, @user, params: {:respond_to_id => @dmail.id}
           assert_response :success
         end
 
         context "and a forward flag" do
           should "not populate the to field" do
-            get_authenticated new_dmail_path, @user, params: {:respond_to_id => @dmail.id, :forward => true}
+            get_auth new_dmail_path, @user, params: {:respond_to_id => @dmail.id, :forward => true}
             assert_response :success
           end
         end
@@ -44,25 +44,25 @@ class DmailsControllerTest < ActionDispatch::IntegrationTest
 
     context "index action" do
       should "show dmails owned by the current user by sent" do
-        get_authenticated dmails_path, @user, params: {:search => {:owner_id => @dmail.owner_id, :folder => "sent"}}
+        get_auth dmails_path, @user, params: {:search => {:owner_id => @dmail.owner_id, :folder => "sent"}}
         assert_response :success
       end
 
       should "show dmails owned by the current user by received" do
-        get_authenticated dmails_path, @user, params: {:search => {:owner_id => @dmail.owner_id, :folder => "received"}}
+        get_auth dmails_path, @user, params: {:search => {:owner_id => @dmail.owner_id, :folder => "received"}}
         assert_response :success
       end
 
       should "not show dmails not owned by the current user" do
-        get_authenticated dmails_path, @user, params: {:search => {:owner_id => @dmail.owner_id}}
+        get_auth dmails_path, @user, params: {:search => {:owner_id => @dmail.owner_id}}
         assert_response :success
       end
 
       should "work for banned users" do
-        CurrentUser.as(create(:admin_user)) do
+        as(create(:admin_user)) do
           create(:ban, :user => @user)
         end
-        get_authenticated dmails_path, @dmail.owner, params: {:search => {:owner_id => @dmail.owner_id, :folder => "sent"}}
+        get_auth dmails_path, @dmail.owner, params: {:search => {:owner_id => @dmail.owner_id, :folder => "sent"}}
 
         assert_response :success
       end
@@ -70,12 +70,12 @@ class DmailsControllerTest < ActionDispatch::IntegrationTest
 
     context "show action" do
       should "show dmails owned by the current user" do
-        get_authenticated dmail_path(@dmail), @dmail.owner
+        get_auth dmail_path(@dmail), @dmail.owner
         assert_response :success
       end
 
       should "not show dmails not owned by the current user" do
-        get_authenticated dmail_path(@dmail), @unrelated_user
+        get_auth dmail_path(@dmail), @unrelated_user
         assert_response(403)
       end
     end
@@ -88,7 +88,7 @@ class DmailsControllerTest < ActionDispatch::IntegrationTest
       should "create two messages, one for the sender and one for the recipient" do
         assert_difference("Dmail.count", 2) do
           dmail_attribs = {:to_id => @user_2.id, :title => "abc", :body => "abc"}
-          post_authenticated dmails_path, @user, params: {:dmail => dmail_attribs}
+          post_auth dmails_path, @user, params: {:dmail => dmail_attribs}
           assert_redirected_to dmail_path(Dmail.last)
         end
       end
@@ -97,14 +97,14 @@ class DmailsControllerTest < ActionDispatch::IntegrationTest
     context "destroy action" do
       should "allow deletion if the dmail is owned by the current user" do
         assert_difference("Dmail.count", -1) do
-          delete_authenticated dmail_path(@dmail), @user
+          delete_auth dmail_path(@dmail), @user
           assert_redirected_to dmails_path
         end
       end
 
       should "not allow deletion if the dmail is not owned by the current user" do
         assert_difference("Dmail.count", 0) do
-          delete_authenticated dmail_path(@dmail), @unrelated_user
+          delete_auth dmail_path(@dmail), @unrelated_user
         end
       end
     end
