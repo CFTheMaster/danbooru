@@ -63,7 +63,27 @@ class Post < ApplicationRecord
     has_many :versions, lambda {order("post_versions.updated_at ASC")}, :class_name => "PostArchive", :dependent => :destroy
   end
 
-  attr_accessor :old_tag_string, :old_parent_id, :old_source, :old_rating, :has_constraints, :disable_versioning, :view_count
+  concerning :KeeperMethods do
+    included do
+      before_create :initialize_keeper
+    end
+
+    def keeper_id
+      if PostKeeperManager.enabled?
+        keeper_data ? keeper_data["uid"] : uploader_id
+      else
+        uploader_id
+      end
+    end
+
+    def keeper
+      User.find(keeper_id)
+    end
+
+    def initialize_keeper
+      self.keeper_data = {uid: uploader_id}
+    end
+  end
 
   concerning :KeeperMethods do
     included do
